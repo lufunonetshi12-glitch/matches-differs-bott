@@ -45,7 +45,7 @@ button{background:#18a558;color:white;font-weight:bold;margin-top:20px}
 </select>
 
 <label>Stake</label>
-<input id="stake" type="number" value="0.35" min="0.01">
+<input id="stake" type="number" value="0.35" min="0.01" step="0.01">
 
 <button id="connect">CONNECT TO DERIV</button>
 <button id="start">START BOT</button>
@@ -59,76 +59,72 @@ button{background:#18a558;color:white;font-weight:bold;margin-top:20px}
 let ws=null;
 let running=false;
 
-function status(text){
-document.getElementById("status").textContent="Status: "+text;
+function status(message){
+    document.getElementById("status").textContent="Status: "+message;
 }
 
 document.getElementById("connect").onclick=function(){
 
-let appId=document.getElementById("appId").value.trim();
+    status("Connecting...");
 
-if(!appId){
-status("Enter your App ID");
-return;
-}
+    ws=new WebSocket(
+        "wss://api.derivws.com/trading/v1/options/ws/public"
+    );
 
-status("Connecting...");
+    ws.onopen=function(){
 
-ws=new WebSocket(
-"wss://ws.derivws.com/websockets/v3?app_id="+appId
-);
+        status("Connected to Deriv");
 
-ws.onopen=function(){
-status("Connected to Deriv");
+        const symbol=document.getElementById("symbol").value;
 
-let symbol=document.getElementById("symbol").value;
+        ws.send(JSON.stringify({
+            ticks:symbol,
+            subscribe:1
+        }));
+    };
 
-ws.send(JSON.stringify({
-ticks:symbol,
-subscribe:1
-}));
-};
+    ws.onmessage=function(event){
 
-ws.onmessage=function(event){
+        const data=JSON.parse(event.data);
 
-let data=JSON.parse(event.data);
+        if(data.error){
+            status("Error: "+data.error.message);
+            return;
+        }
 
-if(data.tick){
-let quote=String(data.tick.quote);
-let lastDigit=quote.slice(-1);
+        if(data.tick){
 
-status("Connected • Last digit: "+lastDigit);
-}
+            const quote=String(data.tick.quote);
+            const lastDigit=quote.slice(-1);
 
-if(data.error){
-status("Error: "+data.error.message);
-}
-};
+            status("Connected • Last digit: "+lastDigit);
+        }
+    };
 
-ws.onerror=function(){
-status("Connection error");
-};
+    ws.onerror=function(){
+        status("Connection error");
+    };
 
-ws.onclose=function(){
-status("Disconnected");
-};
+    ws.onclose=function(){
+        status("Disconnected");
+    };
 };
 
 document.getElementById("start").onclick=function(){
 
-if(!ws || ws.readyState!==WebSocket.OPEN){
-status("Connect to Deriv first");
-return;
-}
+    if(!ws || ws.readyState!==WebSocket.OPEN){
+        status("Connect to Deriv first");
+        return;
+    }
 
-running=true;
-status("Bot started — waiting for signal");
+    running=true;
+    status("Bot started — waiting for signal");
 };
 
 document.getElementById("stop").onclick=function(){
 
-running=false;
-status("Bot stopped");
+    running=false;
+    status("Bot stopped");
 };
 </script>
 
