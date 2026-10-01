@@ -1,35 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matches & Differs Bot</title>
 <style>
-body{font-family:Arial,sans-serif;background:#0b1020;color:white;margin:0;padding:20px}
+body{font-family:Arial;background:#0b1020;color:white;padding:20px}
 .box{max-width:500px;margin:auto;background:#151c32;padding:25px;border-radius:18px}
 h1{text-align:center}
 label{display:block;margin-top:15px}
-input,select,button{width:100%;padding:12px;margin-top:6px;border-radius:8px;border:0;box-sizing:border-box}
-button{background:#18a558;color:white;font-weight:bold;margin-top:20px;cursor:pointer}
+input,select,button{width:100%;padding:14px;margin-top:7px;border:0;border-radius:8px;box-sizing:border-box}
+button{background:#18a558;color:white;font-weight:bold;margin-top:20px}
 .stop{background:#d33}
-.status{margin-top:20px;padding:12px;background:#0b1020;border-radius:8px}
-.small{font-size:13px;color:#aaa;margin-top:15px}
+#status{margin-top:20px;padding:14px;background:#0b1020;border-radius:8px}
 </style>
 </head>
 
 <body>
 <div class="box">
+
 <h1>🎯 Matches & Differs Bot</h1>
 
 <label>Deriv App ID</label>
-<input id="appId" placeholder="Enter your App ID">
+<input id="appId" placeholder="Enter App ID">
 
 <label>Symbol</label>
 <select id="symbol">
 <option value="R_75">Volatility 75</option>
 <option value="R_100">Volatility 100</option>
 <option value="R_50">Volatility 50</option>
-<option value="1HZ75V">Volatility 75 (1s)</option>
 </select>
 
 <label>Trade Type</label>
@@ -47,78 +45,91 @@ button{background:#18a558;color:white;font-weight:bold;margin-top:20px;cursor:po
 </select>
 
 <label>Stake</label>
-<input id="stake" type="number" value="0.35" min="0.01" step="0.01">
+<input id="stake" type="number" value="0.35" min="0.01">
 
-<button onclick="connect()">CONNECT TO DERIV</button>
-<button onclick="startBot()">START BOT</button>
-<button class="stop" onclick="stopBot()">STOP BOT</button>
+<button id="connect">CONNECT TO DERIV</button>
+<button id="start">START BOT</button>
+<button id="stop" class="stop">STOP BOT</button>
 
-<div class="status" id="status">Status: Waiting</div>
+<div id="status">Status: Waiting</div>
 
-<div class="small">
-Use demo trading first. Never place a real trade until you have tested the bot.
-</div>
 </div>
 
 <script>
 let ws=null;
 let running=false;
 
-function setStatus(msg){
-    document.getElementById("status").innerText="Status: "+msg;
+function status(text){
+document.getElementById("status").textContent="Status: "+text;
 }
 
-function connect(){
-    const appId=document.getElementById("appId").value.trim();
+document.getElementById("connect").onclick=function(){
 
-    if(!appId){
-        setStatus("Enter your Deriv App ID");
-        return;
-    }
+let appId=document.getElementById("appId").value.trim();
 
-    ws=new WebSocket(
-        "wss://ws.derivws.com/websockets/v3?app_id="+encodeURIComponent(appId)
-    );
-
-    ws.onopen=()=>{
-        setStatus("Connected to Deriv");
-        ws.send(JSON.stringify({ticks:"R_75"}));
-    };
-
-    ws.onmessage=(event)=>{
-        const data=JSON.parse(event.data);
-
-        if(data.tick){
-            setStatus(
-                "Connected • Last digit: "+
-                String(data.tick.quote).slice(-1)
-            );
-        }
-    };
-
-    ws.onerror=()=>{
-        setStatus("Connection error");
-    };
-
-    ws.onclose=()=>{
-        setStatus("Disconnected");
-    };
+if(!appId){
+status("Enter your App ID");
+return;
 }
 
-function startBot(){
-    if(!ws || ws.readyState!==WebSocket.OPEN){
-        setStatus("Connect to Deriv first");
-        return;
-    }
+status("Connecting...");
 
-    running=true;
-    setStatus("Bot started — waiting for signal");
+ws=new WebSocket(
+"wss://ws.derivws.com/websockets/v3?app_id="+appId
+);
+
+ws.onopen=function(){
+status("Connected to Deriv");
+
+let symbol=document.getElementById("symbol").value;
+
+ws.send(JSON.stringify({
+ticks:symbol,
+subscribe:1
+}));
+};
+
+ws.onmessage=function(event){
+
+let data=JSON.parse(event.data);
+
+if(data.tick){
+let quote=String(data.tick.quote);
+let lastDigit=quote.slice(-1);
+
+status("Connected • Last digit: "+lastDigit);
 }
 
-function stopBot(){
-    running=false;
-    setStatus("Bot stopped");
+if(data.error){
+status("Error: "+data.error.message);
 }
+};
+
+ws.onerror=function(){
+status("Connection error");
+};
+
+ws.onclose=function(){
+status("Disconnected");
+};
+};
+
+document.getElementById("start").onclick=function(){
+
+if(!ws || ws.readyState!==WebSocket.OPEN){
+status("Connect to Deriv first");
+return;
+}
+
+running=true;
+status("Bot started — waiting for signal");
+};
+
+document.getElementById("stop").onclick=function(){
+
+running=false;
+status("Bot stopped");
+};
 </script>
 
 </body>
